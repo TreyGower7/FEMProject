@@ -100,13 +100,22 @@ def Assembly(N, iee):
                 global_node2 = iee[i][m]
                 Kglob[global_node1][global_node2] += kloc[l][m]
 
-def solve_quad():
-    """ Function to solve an integral with guassian quadrature
+def solve_quad(a,b):
+    """ Function to solve an integral with guassian quadrature and change variable to parent space
 
      Args: 
 
-     Returns: integral value
+     Returns: Numerically approximated integral value
     """
+
+    m = (b-a)/2
+    c = (a+b)/2
+    x = np.array(np.zeros(1,n))
+    t = np.array(np.zeros(1,n))
+
+    #computing parent mapped x's
+    for i in range(n):
+        x[i] = m*t[i]+c
 
 def main():
     """ Main entry point of the app """
