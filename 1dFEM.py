@@ -46,8 +46,8 @@ def uni_grid(N, xl,xr,):
 
      Returns: iee = the unifrom grid, x (vector) = [xl, xvalues ,xr]
     """
-    x = np.array(np.zeros((N,1))) #Define x initializing to zero
-    iee = np.array(np.zeros((N,2))) # Nx2 matrix since in 1d there are only ever 2 nodes
+    x = np.zeros((N,1)) #Define x initializing to zero
+    iee = np.zeros((N,2)) # Nx2 matrix since in 1d there are only ever 2 nodes
     Ne = N-1 #total # of 1D elements
     h = (xr-xl)/(Ne)
     #Main loop to create the uniform grid and connectivity map
@@ -60,19 +60,42 @@ def uni_grid(N, xl,xr,):
 
     return {'iee': iee, 'x': x}
 
-#def parent_map(h, x):
- #   """ Function to map our uniform grid to a parent grid [-1, 1] via parent functions
+def basis(z):
+    """ Function to map our uniform grid to a parent grid [-1, 1] via parent functions
 
-    # Args: h = the spacing between each element
+     Args: h = the spacing between each element
 
-     #Returns: mapped values from x-space to xi-space
-#    """
-    #phi_1 = (1-z)/2 #first node parent function
-    #phi_2 = (1+z)/2 #second node parent function
-    #dxdz = h/2
-    #dzdx = 2/h
+     Returns: mapped values from x-space to xi-space
+    """
+    phi_1 = (1-z)/2 #first node parent function
+    phi_2 = (1+z)/2 #second node parent function
+    dxdz = h/2 #h is global value in main function
+    dzdx = 2/h
+    return {'phi_1': int(phi_1), 'phi_2': int(phi_2),'dxdz': dxdz, 'dzdx': dzdx}
 
-def Assembly(N, iee):
+def element_mats(N,iee):
+    Ne = N-1 #total # of 1D elements
+    Kloc = np.zeros((2,2))
+    Kglob = np.zeros((N,N))
+    Mloc = np.zeros((2,2))
+    Mglob = np.zeros((N,N))
+
+    for i in range(Ne):
+        for l in range(1):
+            for m in range(1):
+                Kloc[l][m] = 
+                Kloc[l][m] = 
+
+
+        #Global assembly 
+        for l in range(1):
+            global_node1 = iee[i][l]
+            for m in range(1):
+                global_node2 = iee[i][m]
+                Kglob[global_node1][global_node2] += Kloc[l][m]
+                Mglob[global_node1][global_node2] += Mloc[l][m]
+
+def Assembly_F(N, iee):
     """ Function to assemble the global FE Mesh
 
      Args: N = total # of global nodes, iee = the uniform grid
@@ -80,27 +103,21 @@ def Assembly(N, iee):
      Returns: 
     """
     Ne = N-1 #total # of 1D elements
-    kloc = np.array(np.zeros((2,2)))
-    floc = np.array(np.zeros((2,1)))
-    Kglob = np.array(np.zeros((N,N)))
-    fglob = np.array(np.zeros((N,1)))
+    floc = np.zeros((2,1))
+    fglob = np.zeros((N,1))
 
     for i in range(Ne):
         #Local calculations for each element 
         for l in range(1):
             floc[l] = solve_quad()
-            for m in range(1,2,1):
-                kloc[l][m] = solve_quad()
 
         #Global assembly 
         for l in range(1):
             global_node1 = iee[i][l]
             fglob[global_node1] += floc[l]
-            for m in range(1):
-                global_node2 = iee[i][m]
-                Kglob[global_node1][global_node2] += kloc[l][m]
+            
 
-def solve_quad(a,b,time):
+def solve_quad(N,a,b,time):
     """ Function to solve an integral with guassian quadrature and change variable to parent space
 
      Args: 
@@ -110,17 +127,17 @@ def solve_quad(a,b,time):
     n = 2
     m = (b-a)/2
     c = (a+b)/2
-    x = np.array(np.zeros(1,n))
-    t = np.array((-.5774,.5774))
-    f = np.array(np.zeros(1,n)) #function values for mapped values
-    w = np.array((1,1)) #weights
+    x = np.zeros((1,n))
+    guassT = np.array([-.5774,.5774])
+    f = np.zeros((1,n)) #function values for mapped values
+    guassW = np.array([1,1]) #weights
     result = 0
-    
+    guassTmapd = basis()
     #computing parent mapped x's and summing
     for i in range(n):
-        x[i] = m*t[i]+c
+        x[i] = m*guassT[i]+c
         f[i] = fxt(x[i],time)
-        result += w[i]*f[i]
+        result += guassW[i]*f[i]
     return result*m
 
 def main():
@@ -128,7 +145,8 @@ def main():
     uin = user_in()
     #appending values for specific heat equation problem
     uin.append(user_in_heateq)
-
+    global h #make h global since it doesnt change 
+    h = (uin['xr']-uin['xl'])/uin['N']
     print("Making Unifrom Grid\n")
     print("--------------------\n")
     iee_x = uni_grid(uin['N'], uin['xl'], uin['xr'])

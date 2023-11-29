@@ -28,8 +28,8 @@ def uni_grid(N, xl,xr,):
 
      Returns: iee = the unifrom grid, x (vector) = [xl, xvalues ,xr]
     """
-    x = np.array(np.zeros((N,1))) #Define x initializing to zero
-    iee = np.array(np.zeros((N,2))) # Nx2 matrix since in 1d there are only ever 2 nodes
+    x = np.zeros((N,1)) #Define x initializing to zero
+    iee = np.zeros((N,2)) # Nx2 matrix since in 1d there are only ever 2 nodes
     Ne = N-1 #total # of 1D elements
     h = (xr-xl)/(Ne)
     #Main loop to create the uniform grid and connectivity map
@@ -41,18 +41,22 @@ def uni_grid(N, xl,xr,):
     x[N-1] = xr
 
     return {'iee': iee, 'x': x}
-
+def te():
+    print(h)
 def main():
     """ Main entry point of the app """
     uin = user_in()
     iee = uni_grid(uin['N'],uin['xl'], uin['xr'])
+    global h
+    h = (uin['xr']-uin['xl'])/uin['N']
 
     print(uin['N'])
     print('')
     print(iee['iee'])
     print('')
     print(iee['x'])
-
+    
+    te()
 
 
 if __name__ == "__main__":
