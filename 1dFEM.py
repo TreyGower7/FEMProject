@@ -2,7 +2,7 @@ import numpy as np
 
 """
 This project aims to use 1-dimensional Finite Element Methods to solve a heat transfer PDE 
-with initial and Dirichlet Boundary Conditions
+given initial and Dirichlet Boundary Conditions
 """
 
 __author__ = "Trey Gower"
