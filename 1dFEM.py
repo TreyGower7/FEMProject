@@ -71,7 +71,7 @@ def basis(z):
     phi_2 = (1+z)/2 #second node parent function
     dxdz = h/2 #h is global value in main function
     dzdx = 2/h
-    return {'phi_1': int(phi_1), 'phi_2': int(phi_2),'dxdz': dxdz, 'dzdx': dzdx}
+    return {'phi_1': int(phi_1), 'phi_2': int(phi_2),'dxdz': int(dxdz), 'dzdx': int(dzdx)}
 
 def element_mats(N,iee):
     Ne = N-1 #total # of 1D elements
@@ -96,25 +96,25 @@ def element_mats(N,iee):
                 Mglob[global_node1][global_node2] += Mloc[l][m]
     return Kglob, Mglob
 
-def Assembly_f(N, iee,t):
+def Assembly_f(uin, iee):
     """ Function to assemble the global FE Mesh
 
      Args: N = total # of global nodes, iee = the uniform grid
 
-     Returns: 
+     Returns: the globla forcing function vector 
     """
-    Nt = (t['tf']-t['t0'])/t['dt']
-    ctime = t['t0']
-
+    Nt = (uin['tf']-uin['t0'])/uin['dt']
+    ctime = uin['t0']
+    N = uin['N']
     Ne = N-1 #total # of 1D elements
     floc = np.zeros((2,1))
     fglob = np.zeros((N,1))
     for n in range(Nt):
-        ctime = t['t0'] + n*t['dt']
+        ctime = uin['t0'] + n*uin['dt']
         for i in range(Ne):
             #Local calculations for each element 
             for l in range(1):
-                floc[l] = solve_quad(N,a,b,ctime)
+                floc[l] = solve_quad(N,uin['xl'],uin['xr'],ctime)
 
             #Global assembly 
             for l in range(1):
@@ -123,7 +123,7 @@ def Assembly_f(N, iee,t):
     return fglob
             
 
-def solve_quad(N,a,b,time):
+def solve_quad(N,a,b,t):
     """ Function to solve an integral with guassian quadrature and change variable to parent space
 
      Args: 
@@ -133,16 +133,16 @@ def solve_quad(N,a,b,time):
     n = 2
     m = (b-a)/2
     c = (a+b)/2
-    x = np.zeros((1,n))
-    guassT = np.array([-.5774,.5774])
+    xi = np.zeros((1,n))
+    guassT = np.array([-.5774,.5774]) #guassian quadrature points
     f = np.zeros((1,n)) #function values for mapped values
     guassW = np.array([1,1]) #weights
     result = 0
     guassTmapd = basis()
     #computing parent mapped x's and summing
     for i in range(n):
-        x[i] = m*guassT[i]+c
-        f[i] = fxt(x[i],time)
+        xi[i] = m*guassT[i]+c
+        f[i] = fxt(xi[i],t)
         result += guassW[i]*f[i]
     return result*m
 
@@ -168,7 +168,7 @@ def main():
 
     print("Creating forcing vector via guass quadrature\n")
     print("------------------------------\n")
-    f = Assembly_f(uin['N'],grid['iee'], {'t0': uin['t0'], 'tf': uin['tf'],'dt': uin['dt']})
+    f = Assembly_f(uin,grid['iee'])
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """
