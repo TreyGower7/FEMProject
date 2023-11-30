@@ -15,29 +15,29 @@ def user_in():
      
      Args: N/A
 
-     Returns: N = total # of global nodes, xl = left boundary, xr = right boundary, 
-     fx = external forcing function, Boundary Conditions
+     Returns: N = total # of global nodes, xl = left boundary, xr = right boundary
     """
     N = input("Enter N the total # of global nodes: \n")
     xl = input("Enter xl the left boundary: \n")
     xr = input("Enter xr the right boundary: \n")
-    BCs = input("Enter BCs the boundary conditions: \n")
 
-    return {"N":N,"xl":xl,"xr":xr,"fx":fx, "BCs": BCs}
+    return {"N":N,"xl":xl,"xr":xr}
 
-def user_in_heateq(x0):
+def user_in_heateq(x):
     """ Function to gather user inputs for the heat equation problem given
      
      Args: x0 (value of x at time t = 0)
 
      Returns: ux0 = initial condition, t0 = initial time, tf = final time, dt = time step
     """
-    ux0 = np.sin(np.pi*x0)
+    #using the dirichlet boundary condition to initialize u_n 
+    u_n = np.array([np.sin(np.pi*x_i) for x_i in x]) 
+
     t0 = input("Enter initial time: \n")
     tf = input("Enter finial time: \n")
     dt = input("Enter time step: \n")
 
-    return {"ux0":ux0,"t0":t0,"tf":tf,"dt":dt}
+    return {"u_n":u_n,"t0":t0,"tf":tf,"dt":dt}
 
 def uni_grid(N, xl,xr,):
     """ Function to create a uniform grid
@@ -94,27 +94,33 @@ def element_mats(N,iee):
                 global_node2 = iee[i][m]
                 Kglob[global_node1][global_node2] += Kloc[l][m]
                 Mglob[global_node1][global_node2] += Mloc[l][m]
+    return Kglob, Mglob
 
-def Assembly_F(N, iee):
+def Assembly_f(N, iee,t):
     """ Function to assemble the global FE Mesh
 
      Args: N = total # of global nodes, iee = the uniform grid
 
      Returns: 
     """
+    Nt = (t['tf']-t['t0'])/t['dt']
+    ctime = t['t0']
+
     Ne = N-1 #total # of 1D elements
     floc = np.zeros((2,1))
     fglob = np.zeros((N,1))
+    for n in range(Nt):
+        ctime = t['t0'] + n*t['dt']
+        for i in range(Ne):
+            #Local calculations for each element 
+            for l in range(1):
+                floc[l] = solve_quad(N,a,b,ctime)
 
-    for i in range(Ne):
-        #Local calculations for each element 
-        for l in range(1):
-            floc[l] = solve_quad()
-
-        #Global assembly 
-        for l in range(1):
-            global_node1 = iee[i][l]
-            fglob[global_node1] += floc[l]
+            #Global assembly 
+            for l in range(1):
+                global_node1 = iee[i][l]
+                fglob[global_node1] += floc[l]
+    return fglob
             
 
 def solve_quad(N,a,b,time):
@@ -142,15 +148,28 @@ def solve_quad(N,a,b,time):
 
 def main():
     """ Main entry point of the app """
+    
+
     uin = user_in()
-    #appending values for specific heat equation problem
-    uin.append(user_in_heateq)
-    global h #make h global since it doesnt change 
-    h = (uin['xr']-uin['xl'])/uin['N']
+
     print("Making Unifrom Grid\n")
     print("--------------------\n")
-    iee_x = uni_grid(uin['N'], uin['xl'], uin['xr'])
-    
+    grid = uni_grid(uin['N'], uin['xl'], uin['xr'])
+
+    #appending values for specific heat equation problem inputing x0
+    uin.append(user_in_heateq(grid['x']))
+
+    global h #make h global since it doesnt change and its the easiest solution
+    h = (uin['xr']-uin['xl'])/uin['N']
+
+    print("Creating Mass and Stiffness Matrices\n")
+    print("------------------------------\n")
+    M, K = element_mats(uin['N'],grid['iee'])
+
+    print("Creating forcing vector via guass quadrature\n")
+    print("------------------------------\n")
+    f = Assembly_f(uin['N'],grid['iee'], {'t0': uin['t0'], 'tf': uin['tf'],'dt': uin['dt']})
+
 if __name__ == "__main__":
     """ This is executed when run from the command line """
     main()
