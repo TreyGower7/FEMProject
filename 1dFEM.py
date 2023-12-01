@@ -35,9 +35,9 @@ def user_in_heateq(x):
 
     t0 = input("Enter initial time: \n")
     tf = input("Enter finial time: \n")
-    dt = input("Enter time step: \n")
-
-    return {"u_n":u_n,"t0":t0,"tf":tf,"dt":dt}
+    dt = input("Enter how many time steps: \n")
+    dt = 1/int(dt)
+    return {"u_n":u_n,"t0":int(t0),"tf":int(tf),"dt":dt}
 
 def uni_grid(N, xl,xr,):
     """ Function to create a uniform grid
@@ -96,34 +96,34 @@ def element_mats(N,iee):
                 Mglob[global_node1][global_node2] += Mloc[l][m]
     return Kglob, Mglob
 
-def Assembly_f(uin, iee):
+def Assembly_f(uin, iee, uin_h):
     """ Function to assemble the global FE Mesh
 
      Args: N = total # of global nodes, iee = the uniform grid
 
-     Returns: the globla forcing function vector 
+     Returns: the global forcing function vector 
     """
-    Nt = (uin['tf']-uin['t0'])/uin['dt']
-    ctime = uin['t0']
+    Nt = int((uin_h['tf']-uin_h['t0'])/(uin_h['dt']))
+    ctime = uin_h['t0']
     N = uin['N']
     Ne = N-1 #total # of 1D elements
     floc = np.zeros((2,1))
     fglob = np.zeros((N,1))
     for n in range(Nt):
-        ctime = uin['t0'] + n*uin['dt']
+        ctime = uin_h['t0'] + n*uin_h['dt']
         for i in range(Ne):
             #Local calculations for each element 
             for l in range(1):
-                floc[l] = solve_quad(N,uin['xl'],uin['xr'],ctime)
+                floc[l] = solve_quad(uin['xl'],uin['xr'],ctime)
 
             #Global assembly 
             for l in range(1):
-                global_node1 = iee[i][l]
+                global_node1 = int(iee[i][l])
                 fglob[global_node1] += floc[l]
     return fglob
             
 
-def solve_quad(N,a,b,t):
+def solve_quad(a,b,t):
     """ Function to solve an integral with guassian quadrature and change variable to parent space
 
      Args: 
@@ -133,18 +133,18 @@ def solve_quad(N,a,b,t):
     n = 2
     m = (b-a)/2
     c = (a+b)/2
-    xi = np.zeros((1,n))
+    xi = np.zeros((n,1))
     guassT = np.array([-.5774,.5774]) #guassian quadrature points
-    f = np.zeros((1,n)) #function values for mapped values
+    f = np.zeros((n,1)) #function values for mapped values
     guassW = np.array([1,1]) #weights
     result = 0
-    guassTmapd = basis()
     #computing parent mapped x's and summing
     for i in range(n):
+        b = basis(xi[i])
         xi[i] = m*guassT[i]+c
         f[i] = fxt(xi[i],t)
-        result += guassW[i]*f[i]
-    return result*m
+        result += guassW[i]*f[i]*b(['phi_' + str(i)])
+    return b(['dxdz'])*result*m
 
 def main():
     """ Main entry point of the app """
@@ -157,7 +157,7 @@ def main():
     grid = uni_grid(uin['N'], uin['xl'], uin['xr'])
 
     #appending values for specific heat equation problem inputing x0
-    uin.append(user_in_heateq(grid['x']))
+    uin_h = user_in_heateq(grid['x'])
 
     global h #make h global since it doesnt change and its the easiest solution
     h = (uin['xr']-uin['xl'])/uin['N']
@@ -168,7 +168,7 @@ def main():
 
     print("Creating forcing vector via guass quadrature\n")
     print("------------------------------\n")
-    f = Assembly_f(uin,grid['iee'])
+    f = Assembly_f(uin, grid['iee'], uin_h)
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """

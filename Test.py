@@ -5,6 +5,9 @@ Module Docstring
 
 __author__ = "Trey Gower"
 
+def fxt(x,t):
+    return (((np.pi)**2-1)*np.exp(-t)*np.sin(np.pi*x))
+
 def user_in():
     """ Function to gather user inputs for general purpose Finite Element code
      
@@ -20,6 +23,21 @@ def user_in():
     BCs = input("Enter BCs the boundary conditions: \n")
 
     return {"N":int(N),"xl":int(xl),"xr":int(xr),"fx":fx, "BCs": BCs}
+def user_in_heateq(x):
+    """ Function to gather user inputs for the heat equation problem given
+     
+     Args: x0 (value of x at time t = 0)
+
+     Returns: ux0 = initial condition, t0 = initial time, tf = final time, dt = time step
+    """
+    #using the dirichlet boundary condition to initialize u_n 
+    u_n = np.array([np.sin(np.pi*x_i) for x_i in x]) 
+
+    t0 = input("Enter initial time: \n")
+    tf = input("Enter finial time: \n")
+    dt = input("Enter how many time steps: \n")
+    dt = 1/int(dt)
+    return {"u_n":u_n,"t0":int(t0),"tf":int(tf),"dt":dt}
 
 def uni_grid(N, xl,xr,):
     """ Function to create a uniform grid
@@ -41,24 +59,91 @@ def uni_grid(N, xl,xr,):
     x[N-1] = xr
 
     return {'iee': iee, 'x': x}
-def te():
-    print(h)
+
+def Assembly_f(uin, iee, uin_h):
+    """ Function to assemble the global FE Mesh
+
+     Args: N = total # of global nodes, iee = the uniform grid
+
+     Returns: the global forcing function vector 
+    """
+    Nt = int((uin_h['tf']-uin_h['t0'])/(uin_h['dt']))
+    ctime = uin_h['t0']
+    N = uin['N']
+    Ne = N-1 #total # of 1D elements
+    floc = np.zeros((2,1))
+    fglob = np.zeros((N,1))
+    for n in range(Nt):
+        ctime = uin_h['t0'] + n*uin_h['dt']
+        for i in range(Ne):
+            #Local calculations for each element 
+            for l in range(1):
+                floc[l] = solve_quad(uin['xl'],uin['xr'],ctime)
+
+            #Global assembly 
+            for l in range(1):
+                global_node1 = int(iee[i][l])
+                fglob[global_node1] += floc[l]
+    return fglob
+
+def solve_quad(a,b,t):
+    """ Function to solve an integral with guassian quadrature and change variable to parent space
+
+     Args: 
+
+     Returns: Numerically approximated integral value
+    """
+    n = 2
+    m = (b-a)/2
+    c = (a+b)/2
+    xi = np.zeros((n,1))
+    guassT = np.array([-.5774,.5774]) #guassian quadrature points
+    f = np.zeros((n,1)) #function values for mapped values
+    guassW = np.array([1,1]) #weights
+    result = 0
+    #computing parent mapped x's and summing
+    for i in range(n):
+        xi[i] = m*guassT[i]+c
+        b = basis(xi[i])
+        if i == 0:
+            phi = b['phi_1']
+        else:
+            phi = b['phi_2']
+        f[i] = fxt(xi[i],t)
+        result += guassW[i]*f[i]*phi
+    return b['dxdz']*result*m
+
+def basis(z):
+    """ Function to map our uniform grid to a parent grid [-1, 1] via parent functions
+
+     Args: h = the spacing between each element
+
+     Returns: mapped values from x-space to xi-space
+    """
+    phi_1 = (1-z)/2 #first node parent function
+    phi_2 = (1+z)/2 #second node parent function
+    dxdz = h/2 #h is global value in main function
+    dzdx = 2/h
+    return {'phi_1': int(phi_1), 'phi_2': int(phi_2),'dxdz': int(dxdz), 'dzdx': int(dzdx)}
+
 def main():
     """ Main entry point of the app """
     uin = user_in()
-    iee = uni_grid(uin['N'],uin['xl'], uin['xr'])
-    global h
+
+    print("Making Unifrom Grid\n")
+    print("--------------------\n")
+    grid = uni_grid(uin['N'], uin['xl'], uin['xr'])
+
+    #appending values for specific heat equation problem inputing x0
+    uin_h = user_in_heateq(grid['x'])
+
+    global h #make h global since it doesnt change and its the easiest solution
     h = (uin['xr']-uin['xl'])/uin['N']
 
-    print(uin['N'])
-    print('')
-    print(iee['iee'])
-    print('')
-    print(iee['x'])
-    
-    te()
-
-
+    print("Creating forcing vector via guass quadrature\n")
+    print("------------------------------\n")
+    f = Assembly_f(uin, grid['iee'], uin_h)
+    print(f)
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """
