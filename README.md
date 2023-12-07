@@ -31,7 +31,8 @@ Enter number of time steps:
 
 # Problem 2 (Forward Euler):
 N = 11, Xl = 0, Xr = 1, initial time = 0, final time = 1, time steps = 551
- 
+
+<img src = https://github.com/TreyGower7/FEMProject/blob/main/be_551.0_soln.png>
 # Problem 3 (Backward Euler):
 N = 11, Xl = 0, Xr = 1, initial time = 0, final time = 1, time steps = 551
 
@@ -91,8 +92,7 @@ K:
  [0.         0.         0.         0.         0.         0.
   0.         0.         0.         0.         0.        ]]
 
-Applying Dirichlet Boundary Conditions
-------------------------------
+### Applying Dirichlet Boundary Conditions
 
 New M Matrix:
 [[ 1.  0.  0.  0.  0.  0.  0.  0.  0.  0.  0.]
