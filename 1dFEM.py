@@ -12,6 +12,10 @@ def fxt(x,t):
 
 def analytical_soln(x, t):
     return (np.exp(-t) * np.sin(np.pi * x))
+def initial_un(x):
+    u_n = np.array([np.sin(np.pi*x_i) for x_i in x])
+    return u_n
+
 
 def user_in():
     """ Function to gather user inputs for general purpose Finite Element code
@@ -20,14 +24,14 @@ def user_in():
 
      Returns: N = total # of global nodes, xl = left boundary, xr = right boundary
     """
-    N = input("Enter N the total # of global nodes: \n")
-    xl = input("Enter xl the left boundary: \n")
-    xr = input("Enter xr the right boundary: \n")
+    N = int(input("Enter N the total # of global nodes: \n"))
+    xl = int(input("Enter xl the left boundary: \n"))
+    xr = int(input("Enter xr the right boundary: \n"))
     emeth = input("Enter (FE) for Foward or (BE) for Backward Euler Method: \n")
 
-    return {"N":int(N),"xl":int(xl),"xr":int(xr), 'emeth': emeth}
+    return N, xl, xr, emeth
 
-def user_in_heateq(N,x):
+def user_in_heateq(N):
     """ Function to gather user inputs for the heat equation problem given
      
      Args: x0 (value of x at time t = 0)
@@ -35,14 +39,12 @@ def user_in_heateq(N,x):
      Returns: ux0 = initial condition, t0 = initial time, tf = final time, dt = time steps
     """
 
-    t0 = input("Enter initial time: \n")
-    tf = input("Enter finial time: \n")
-    ts = input("Enter number of time steps: \n")
+    t0 = int(input("Enter initial time: \n"))
+    tf = int(input("Enter finial time: \n"))
+    ts = int(input("Enter number of time steps: \n"))
     dt = 1/int(ts)
     #using the dirichlet boundary condition to initialize u_n 
-    u_n = np.array([np.sin(np.pi*x_i) for x_i in x]) 
-
-    return {"u_n":u_n,"t0":int(t0),"tf":int(tf),"dt":dt}
+    return t0, tf, dt
 
 def uni_grid(N, xl,xr,):
     """ Function to create a uniform grid
@@ -62,7 +64,7 @@ def uni_grid(N, xl,xr,):
     
     x[N-1] = xr
 
-    return {'iee': iee, 'x': x}
+    return iee, x
 
 def basis(z):
     """ Function to map our uniform grid to a parent grid [-1, 1] via parent functions
@@ -76,11 +78,10 @@ def basis(z):
     dphi = np.array([-1 / 2, 1 / 2])
     dxdz = h/2 #h is global value in main function
     dzdx = 2/h
-    return {'phi_1': int(phi_1), 'phi_2': int(phi_2), 'dphi': dphi, 
-            'dxdz': int(dxdz), 'dzdx': int(dzdx)}
+    return phi_1, phi_2, dphi, dxdz, dzdx
 
 def element_mats(N,iee,ts):
-    """ Compute K and M matrices
+    """ Compute K and M matrices and F vectore
 
      Args: N and the uniform grid iee
 
@@ -94,25 +95,25 @@ def element_mats(N,iee,ts):
     Mglob = np.zeros((N,N))
     Fglob = np.zeros((N, 1))
     P, W = quad_points()
-    b0 = basis(P[0]) # mapping to xi space with our guassian quadtrature points -.5773
-    b1 = basis(P[1]) # mapping to xi space with our guassian quadtrature point .5773
-    dphi = b0['dphi']
+    phi_1p0, phi_2p0, dphi, dxdz, dzdx = basis(P[0]) # mapping to xi space with our guassian quadtrature points -.5773
+    phi_1p1, phi_2p1, dphi, dxdz, dzdx= basis(P[1]) # mapping to xi space with our guassian quadtrature point .5773
     #Phi matrix for ease of use
-    phi = np.array([[b0['phi_1'], b1['phi_1']], 
-                    [b0['phi_2'], b1['phi_2']]])
+    phi = np.array([[phi_1p0, phi_1p1], 
+                    [phi_2p0, phi_2p1]])
                     
-    for i in range(Ne):
+    for i in range(int(Ne)):
         for l in range(1):
             for m in range(1):
                 
                 Mloc[l][m] = (phi[l, 0] * phi[m, 0] + phi[l, 1] * phi[m, 1]) * h
-                Kloc[l][m] = int(dphi[l]) * b0['dzdx'] * int(dphi[m]) * b0['dzdx'] * b0['dxdz'] * 2
+                Kloc[l][m] = dphi[l] * dzdx * dphi[m] * dzdx * dxdz * 2
 
 
         #Global assembly 
-        for l in range(1):
+        for l in range(2):
             global_node1 = int(iee[i][l])
-            for m in range(1):
+            for m in range(2):
+                print(iee[i][m])
                 global_node2 = int(iee[i][m])
                 Kglob[global_node1][global_node2] += Kloc[l][m]
                 Mglob[global_node1][global_node2] += Mloc[l][m]
@@ -166,14 +167,14 @@ def solve_kuf(u_n, febe, dt, M, K, F, DBCs):
     M_K = np.dot(M_inv, K)
     B = (1/dt) * M + K
     B_inv = np.linalg.inv(B)
-    if febe == 'FE':
-        for t in range(1/dt):
-            u_n[:, t + 1] = u_n[:, t] - dt * M_K.dot(u_n[:, t]) + dt * M_inv.dot(F[:, t])
-            u_n[:, t + 1] = DBCs.dot(u_n[:, t + 1])
+    if febe == 'FE' or febe == 'fe' or febe == 'Fe':
+        for t in range(int(1/dt)):
+            u_n[:] = u_n[:] - dt * M_K.dot(u_n[:]) + dt * M_inv.dot(F[:])
+            u_n[:] = DBCs.dot(u_n[:])
     else:
-        for t in range(1/dt):
-            u_n[:, t + 1] = (1 / dt) * B_inv.dot(M.dot(u_n[:, t])) + B_inv.dot(F[:, t])
-            u_n[:, t + 1] = DBCs.dot(u_n[:, t + 1])
+        for t in range(int(1/dt)):
+            u_n[:] = (1 / dt) * B_inv.dot(M.dot(u_n[:])) + B_inv.dot(F[:])
+            u_n[:] = DBCs.dot(u_n[:])
     
     return u_n
 
@@ -182,7 +183,7 @@ def plot_soln(u, ts,febe,N):
     xn = np.linspace(0, 1, 1000)
     sol = analytical_soln(xn,1)
     plt.plot(xn, sol, label='Analytical Solution (Exact)')
-    plt.plot(x, u[:, ts], label=f'{febe} Numerical Solution with {ts} time steps')
+    plt.plot(x, u[:], label=f'{febe} Numerical Solution with {ts} time steps')
     plt.xlabel('x')
     plt.ylabel('Solution')
     plt.title('Comparing Analytical and Numerical Solutions')
@@ -193,22 +194,22 @@ def main():
     """ Main entry point of the app """
     
 
-    uin = user_in()
+    N, xl, xr, emeth = user_in()
 
     global h #make h global since it doesnt change and its the easiest solution
-    h = (uin['xr']-uin['xl'])/uin['N']
+    h = (xr-xl)/N
 
     print("Making Unifrom Grid\n")
     print("--------------------\n")
-    grid = uni_grid(uin['N'], uin['xl'], uin['xr'])
+    iee,x = uni_grid(N, xl, xr)
 
     #appending values for specific heat equation problem inputing x0
-    uin_h = user_in_heateq(uin['N'], grid['x'])
-
+    t0, tf, dt = user_in_heateq(N)
+    u_0 = initial_un(x)
 
     print("Creating Mass and Stiffness Matrices and F Vector\n")
     print("------------------------------\n")
-    M, K, F = element_mats(uin['N'],grid['iee'],(1/uin_h['dt']))
+    M, K, F = element_mats(N,iee,(1/dt))
 
     print("F:\n")
     print(F)
@@ -219,18 +220,18 @@ def main():
 
     print("Applying Dirichlet Boundary Conditions\n")
     print("------------------------------\n")
-    M, DBCs = bconds(M, uin['N'])
+    M, DBCs = bconds(M, N)
 
     print("New M Matrix:\n")
     print(M)
 
     print("Solving Ku=f System\n")
     print("------------------------------\n")
-    u = solve_kuf(uin_h['u_n'], uin['emeth'],uin_h['dt'], M, K, F, DBCs)
+    u = solve_kuf(u_0, emeth,dt, M, K, F, DBCs)
 
     print("Plotting analytical vs numerical")
     print("------------------------------\n")
-    plot_soln(u, (1/uin_h['dt']), uin['emeth'],uin['N'])
+    plot_soln(u, (1/dt), emeth,N)
 
 if __name__ == "__main__":
     """ This is executed when run from the command line """
